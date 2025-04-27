@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流程编辑器 - AutoMaticWorker</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .flow-card {
+            transition: transform 0.2s ease;
+            cursor: pointer;
+        }
+        .flow-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            background-color: #f8f9fa;
+        }
+        .btn-action {
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>流程编辑器</h1>
+            <button class="btn btn-primary" id="create-flow-btn">创建新流程</button>
+        </div>
+
+        <div class="row" id="flows-container">
+            <!-- 流程卡片将在这里动态加载 -->
+            <div class="col-12 text-center py-5" id="loading">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <p class="mt-2">正在加载流程列表...</p>
+            </div>
+            <div class="col-12 text-center py-5 d-none" id="no-flows">
+                <p class="text-muted">暂无流程，点击"创建新流程"按钮开始使用</p>
+            </div>
+        </div>
+
+        <!-- 创建流程模态框 -->
+        <div class="modal fade" id="createFlowModal" tabindex="-1" aria-labelledby="createFlowModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createFlowModalLabel">创建新流程</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="create-flow-form">
+                            <div class="mb-3">
+                                <label for="flow-name" class="form-label">流程名称</label>
+                                <input type="text" class="form-control" id="flow-name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="flow-description" class="form-label">流程描述</label>
+                                <textarea class="form-control" id="flow-description" rows="3"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" id="submit-create-flow">创建</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 删除确认模态框 -->
+        <div class="modal fade" id="deleteFlowModal" tabindex="-1" aria-labelledby="deleteFlowModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteFlowModalLabel">确认删除</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>确定要删除流程 <span id="delete-flow-name"></span> 吗？此操作不可逆。</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-danger" id="confirm-delete-flow">删除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let flowsData = [];
+        let deleteFlowId = null;
+        
+        // DOM 加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载流程列表
+            fetchFlows();
+            
+            // 创建流程按钮事件
+            document.getElementById('create-flow-btn').addEventListener('click', function() {
+                const createFlowModal = new bootstrap.Modal(document.getElementById('createFlowModal'));
+                createFlowModal.show();
+            });
+            
+            // 提交创建流程表单
+            document.getElementById('submit-create-flow').addEventListener('click', createFlow);
+            
+            // 确认删除流程按钮事件
+            document.getElementById('confirm-delete-flow').addEventListener('click', deleteFlow);
+        });
+        
+        // 获取所有流程
+        async function fetchFlows() {
+            try {
+                const response = await fetch('/flow-editor/flows');
+                if (!response.ok) throw new Error('获取流程列表失败');
+                
+                flowsData = await response.json();
+                renderFlows(flowsData);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        加载失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // 渲染流程列表
+        function renderFlows(flows) {
+            const container = document.getElementById('flows-container');
+            const loading = document.getElementById('loading');
+            const noFlows = document.getElementById('no-flows');
+            
+            // 清除加载中显示
+            loading.classList.add('d-none');
+            
+            // 检查是否有流程
+            if (flows.length === 0) {
+                noFlows.classList.remove('d-none');
+                return;
+            }
+            
+            // 隐藏"无流程"提示
+            noFlows.classList.add('d-none');
+            
+            // 清除现有内容（除了loading和no-flows元素）
+            const existingCards = container.querySelectorAll('.flow-card-container');
+            existingCards.forEach(card => card.remove());
+            
+            // 添加流程卡片
+            flows.forEach(flow => {
+                const createdDate = new Date(flow.created_at).toLocaleDateString();
+                const updatedDate = new Date(flow.updated_at).toLocaleDateString();
+                
+                const flowCard = document.createElement('div');
+                flowCard.className = 'col-md-4 mb-4 flow-card-container';
+                flowCard.innerHTML = `
+                    <div class="card flow-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">${flow.name}</h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary btn-action edit-flow" data-flow-id="${flow.id}">
+                                    <i class="bi bi-pencil"></i> 编辑
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger btn-action delete-flow" data-flow-id="${flow.id}" data-flow-name="${flow.name}">
+                                    <i class="bi bi-trash"></i> 删除
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">${flow.description || '无描述'}</p>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">节点数: ${flow.nodes_count}</small>
+                                <small class="text-muted">连接数: ${flow.connections_count}</small>
+                            </div>
+                        </div>
+                        <div class="card-footer text-muted">
+                            <small>创建于: ${createdDate}</small><br>
+                            <small>最后更新: ${updatedDate}</small>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(flowCard);
+                
+                // 添加编辑按钮事件
+                const editBtn = flowCard.querySelector('.edit-flow');
+                editBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const flowId = this.getAttribute('data-flow-id');
+                    window.location.href = `/flow-editor/editor/${flowId}`;
+                });
+                
+                // 添加删除按钮事件
+                const deleteBtn = flowCard.querySelector('.delete-flow');
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const flowId = this.getAttribute('data-flow-id');
+                    const flowName = this.getAttribute('data-flow-name');
+                    showDeleteConfirmation(flowId, flowName);
+                });
+                
+                // 点击卡片进入编辑页面
+                flowCard.querySelector('.flow-card').addEventListener('click', function() {
+                    const flowId = this.querySelector('.edit-flow').getAttribute('data-flow-id');
+                    window.location.href = `/flow-editor/editor/${flowId}`;
+                });
+            });
+        }
+        
+        // 创建新流程
+        async function createFlow() {
+            const nameInput = document.getElementById('flow-name');
+            const descriptionInput = document.getElementById('flow-description');
+            
+            const flowData = {
+                name: nameInput.value,
+                description: descriptionInput.value
+            };
+            
+            try {
+                const response = await fetch('/flow-editor/flows', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(flowData)
+                });
+                
+                if (!response.ok) throw new Error('创建流程失败');
+                
+                const newFlow = await response.json();
+                
+                // 关闭模态框
+                bootstrap.Modal.getInstance(document.getElementById('createFlowModal')).hide();
+                
+                // 重置表单
+                nameInput.value = '';
+                descriptionInput.value = '';
+                
+                // 跳转到编辑页面
+                window.location.href = `/flow-editor/editor/${newFlow.id}`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`创建失败: ${error.message}`);
+            }
+        }
+        
+        // 显示删除确认框
+        function showDeleteConfirmation(flowId, flowName) {
+            deleteFlowId = flowId;
+            document.getElementById('delete-flow-name').textContent = flowName;
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteFlowModal'));
+            deleteModal.show();
+        }
+        
+        // 删除流程
+        async function deleteFlow() {
+            if (!deleteFlowId) return;
+            
+            try {
+                const response = await fetch(`/flow-editor/flows/${deleteFlowId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('删除流程失败');
+                
+                // 关闭模态框
+                bootstrap.Modal.getInstance(document.getElementById('deleteFlowModal')).hide();
+                
+                // 从列表中移除
+                flowsData = flowsData.filter(flow => flow.id !== deleteFlowId);
+                renderFlows(flowsData);
+                
+                // 重置删除ID
+                deleteFlowId = null;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`删除失败: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html> 

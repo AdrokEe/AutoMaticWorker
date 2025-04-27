@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流程编辑器 - AutoMaticWorker</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+    <!-- React Flow CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11.10.1/dist/style.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        .editor-container {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 280px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            height: 100%;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        .editor-canvas {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            background-color: #f5f5f5;
+            background-image: radial-gradient(#e6e6e6 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .flow-area {
+            width: 100%;
+            height: 100%;
+        }
+        .node {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: white;
+            min-width: 150px;
+        }
+        .node-start {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .node-end {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .node-action {
+            background-color: #cce5ff;
+            border-color: #b8daff;
+        }
+        .node-condition {
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+        .toolbar {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .node-type-item {
+            cursor: move;
+            border: 1px solid #dee2e6;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: white;
+        }
+        .node-type-item:hover {
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        .property-panel {
+            padding: 15px;
+            border-top: 1px solid #dee2e6;
+            margin-top: 15px;
+        }
+        .code-editor {
+            font-family: monospace;
+            height: 150px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 id="flow-name">流程名称</h4>
+                <button class="btn btn-sm btn-outline-secondary" id="back-btn">
+                    <i class="bi bi-arrow-left"></i> 返回
+                </button>
+            </div>
+            
+            <p class="text-muted" id="flow-description">流程描述</p>
+            
+            <h5 class="mt-4">节点类型</h5>
+            <div class="node-types">
+                <div class="node-type-item node-action" draggable="true" data-node-type="action">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-gear me-2"></i>
+                        <span>动作节点</span>
+                    </div>
+                    <small class="text-muted">执行特定操作</small>
+                </div>
+                
+                <div class="node-type-item node-condition" draggable="true" data-node-type="condition">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-diamond me-2"></i>
+                        <span>条件节点</span>
+                    </div>
+                    <small class="text-muted">根据条件分支</small>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button class="btn btn-primary w-100" id="save-flow">保存流程</button>
+                <button class="btn btn-outline-secondary w-100 mt-2" id="export-flow">导出为脚本</button>
+            </div>
+            
+            <!-- 属性面板 -->
+            <div class="property-panel d-none" id="property-panel">
+                <h5>节点属性</h5>
+                <form id="node-properties-form">
+                    <input type="hidden" id="node-id">
+                    <div class="mb-3">
+                        <label for="node-label" class="form-label">节点名称</label>
+                        <input type="text" class="form-control" id="node-label">
+                    </div>
+                    
+                    <!-- 动作节点属性 -->
+                    <div class="action-properties d-none">
+                        <div class="mb-3">
+                            <label for="action-code" class="form-label">代码</label>
+                            <textarea class="form-control code-editor" id="action-code"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- 条件节点属性 -->
+                    <div class="condition-properties d-none">
+                        <div class="mb-3">
+                            <label for="condition-expression" class="form-label">条件表达式</label>
+                            <input type="text" class="form-control" id="condition-expression" placeholder="例如: x > 10">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">应用</button>
+                    <button type="button" class="btn btn-danger" id="delete-node">删除节点</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 编辑器画布 -->
+        <div class="editor-canvas">
+            <div class="flow-area" id="flow-container"></div>
+            
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <button class="btn btn-sm btn-outline-secondary me-1" id="zoom-in">
+                    <i class="bi bi-zoom-in"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-1" id="zoom-out">
+                    <i class="bi bi-zoom-out"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-1" id="zoom-reset">
+                    <i class="bi bi-aspect-ratio"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" id="clear-selection">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 脚本导出模态框 -->
+    <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportModalLabel">导出Python脚本</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="script-output" class="form-label">生成的Python脚本</label>
+                        <textarea class="form-control" id="script-output" rows="15" readonly></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="copy-script">复制脚本</button>
+                    <button type="button" class="btn btn-success" id="download-script">下载脚本</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 依赖库 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reactflow@11.10.1/dist/umd/index.js"></script>
+    
+    <script>
+        // 获取流程ID
+        const flowId = window.location.pathname.split('/').pop();
+        // 流程数据
+        let flowData = null;
+        // React Flow 实例
+        let reactFlowInstance = null;
+        // 当前选中的节点
+        let selectedNode = null;
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 获取流程数据
+            try {
+                const response = await fetch(`/flow-editor/flows/${flowId}`);
+                if (!response.ok) throw new Error('获取流程数据失败');
+                
+                flowData = await response.json();
+                
+                // 填充基本信息
+                document.getElementById('flow-name').textContent = flowData.name;
+                document.getElementById('flow-description').textContent = flowData.description || '无描述';
+                
+                // 初始化流程图
+                initFlowDiagram();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`加载失败: ${error.message}`);
+            }
+            
+            // 添加返回按钮事件
+            document.getElementById('back-btn').addEventListener('click', function() {
+                window.location.href = '/flow-editor/';
+            });
+            
+            // 添加保存按钮事件
+            document.getElementById('save-flow').addEventListener('click', saveFlow);
+            
+            // 添加导出按钮事件
+            document.getElementById('export-flow').addEventListener('click', exportFlow);
+            
+            // 属性表单提交事件
+            document.getElementById('node-properties-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                updateNodeProperties();
+            });
+            
+            // 删除节点按钮事件
+            document.getElementById('delete-node').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (selectedNode) {
+                    deleteNode(selectedNode.id);
+                }
+            });
+            
+            // 复制脚本按钮事件
+            document.getElementById('copy-script').addEventListener('click', function() {
+                const scriptOutput = document.getElementById('script-output');
+                scriptOutput.select();
+                document.execCommand('copy');
+                alert('脚本已复制到剪贴板');
+            });
+            
+            // 下载脚本按钮事件
+            document.getElementById('download-script').addEventListener('click', function() {
+                const scriptContent = document.getElementById('script-output').value;
+                const blob = new Blob([scriptContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `flow_${flowId.substring(0, 8)}.py`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+            
+            // 拖拽节点类型事件
+            document.querySelectorAll('.node-type-item').forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('application/reactflow', this.getAttribute('data-node-type'));
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+            });
+            
+            // 工具栏按钮事件
+            document.getElementById('zoom-in').addEventListener('click', function() {
+                reactFlowInstance.zoomIn();
+            });
+            
+            document.getElementById('zoom-out').addEventListener('click', function() {
+                reactFlowInstance.zoomOut();
+            });
+            
+            document.getElementById('zoom-reset').addEventListener('click', function() {
+                reactFlowInstance.fitView();
+            });
+            
+            document.getElementById('clear-selection').addEventListener('click', function() {
+                reactFlowInstance.setNodes(reactFlowInstance.getNodes().map(node => ({
+                    ...node,
+                    selected: false
+                })));
+                hidePropertyPanel();
+            });
+        });
+        
+        // 初始化流程图
+        function initFlowDiagram() {
+            const { ReactFlow, Background, Controls, MiniMap } = window.ReactFlow;
+            
+            // 准备节点数据
+            const nodes = flowData.nodes.map(node => ({
+                id: node.id,
+                type: 'default',
+                position: node.position,
+                data: {
+                    label: node.data.label || `${node.type} Node`,
+                    ...node.data
+                },
+                className: `node node-${node.type}`
+            }));
+            
+            // 准备连接数据
+            const edges = flowData.connections.map(conn => ({
+                id: conn.id,
+                source: conn.source,
+                target: conn.target,
+                label: conn.label,
+                data: {
+                    condition: conn.condition
+                }
+            }));
+            
+            // 创建 React Flow 实例
+            const container = document.getElementById('flow-container');
+            
+            const flowInstance = ReactFlow.createReactFlow({
+                container,
+                nodes,
+                edges,
+                onNodesChange: onNodesChange,
+                onEdgesChange: onEdgesChange,
+                onConnect: onConnect,
+                onNodeClick: onNodeClick,
+                onDrop: onDrop,
+                onDragOver: onDragOver,
+                onNodeDragStop: onNodeDragStop,
+                snapToGrid: true,
+                snapGrid: [15, 15],
+                fitView: true
+            });
+            
+            // 添加背景和控件
+            flowInstance.addChild(
+                React.createElement(Background, {
+                    gap: 16,
+                    size: 1,
+                    color: '#ddd'
+                })
+            );
+            
+            flowInstance.addChild(
+                React.createElement(Controls, {
+                    position: 'bottom-right'
+                })
+            );
+            
+            flowInstance.addChild(
+                React.createElement(MiniMap, {
+                    nodeColor: (node) => {
+                        switch (node.className.split(' ')[1]) {
+                            case 'node-start': return '#d4edda';
+                            case 'node-end': return '#f8d7da';
+                            case 'node-action': return '#cce5ff';
+                            case 'node-condition': return '#fff3cd';
+                            default: return '#fff';
+                        }
+                    },
+                    maskColor: 'rgba(0, 0, 0, 0.1)',
+                    position: 'bottom-left'
+                })
+            );
+            
+            reactFlowInstance = flowInstance;
+        }
+        
+        // 节点变更事件处理
+        function onNodesChange(changes) {
+            const nodes = reactFlowInstance.getNodes();
+            const updatedNodes = applyNodeChanges(changes, nodes);
+            reactFlowInstance.setNodes(updatedNodes);
+        }
+        
+        // 连接变更事件处理
+        function onEdgesChange(changes) {
+            const edges = reactFlowInstance.getEdges();
+            const updatedEdges = applyEdgeChanges(changes, edges);
+            reactFlowInstance.setEdges(updatedEdges);
+        }
+        
+        // 创建连接事件处理
+        function onConnect(connection) {
+            const newConnection = {
+                ...connection,
+                id: `edge-${Date.now()}`,
+                label: '',
+                data: {
+                    condition: null
+                }
+            };
+            
+            const edges = reactFlowInstance.getEdges();
+            reactFlowInstance.setEdges([...edges, newConnection]);
+        }
+        
+        // 节点点击事件处理
+        function onNodeClick(event, node) {
+            selectedNode = node;
+            showPropertyPanel(node);
+        }
+        
+        // 应用节点变更
+        function applyNodeChanges(changes, nodes) {
+            return changes.reduce((acc, change) => {
+                if (change.type === 'remove') {
+                    return acc.filter((n) => n.id !== change.id);
+                }
+                
+                if (change.type === 'add') {
+                    return [...acc, change.item];
+                }
+                
+                if (change.type === 'select') {
+                    return acc.map((n) => ({
+                        ...n,
+                        selected: n.id === change.id ? change.selected : n.selected
+                    }));
+                }
+                
+                if (change.type === 'position') {
+                    return acc.map((n) => {
+                        if (n.id !== change.id) return n;
+                        return {
+                            ...n,
+                            position: change.position ? change.position : n.position
+                        };
+                    });
+                }
+                
+                return acc;
+            }, nodes);
+        }
+        
+        // 应用连接变更
+        function applyEdgeChanges(changes, edges) {
+            return changes.reduce((acc, change) => {
+                if (change.type === 'remove') {
+                    return acc.filter((e) => e.id !== change.id);
+                }
+                
+                return acc;
+            }, edges);
+        }
+        
+        // 拖放处理
+        function onDrop(event) {
+            event.preventDefault();
+            
+            const nodeType = event.dataTransfer.getData('application/reactflow');
+            if (!nodeType) return;
+            
+            const position = reactFlowInstance.screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY
+            });
+            
+            const newNode = {
+                id: `node-${Date.now()}`,
+                type: 'default',
+                position,
+                data: {
+                    label: getDefaultLabelForType(nodeType)
+                },
+                className: `node node-${nodeType}`
+            };
+            
+            const nodes = reactFlowInstance.getNodes();
+            reactFlowInstance.setNodes([...nodes, newNode]);
+        }
+        
+        // 拖放悬停处理
+        function onDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+        }
+        
+        // 节点拖动结束处理
+        function onNodeDragStop(event, node) {
+            saveNodePosition(node.id, node.position);
+        }
+        
+        // 获取节点类型的默认标签
+        function getDefaultLabelForType(type) {
+            switch (type) {
+                case 'start': return '开始';
+                case 'end': return '结束';
+                case 'action': return '执行动作';
+                case 'condition': return '条件判断';
+                default: return '节点';
+            }
+        }
+        
+        // 显示属性面板
+        function showPropertyPanel(node) {
+            const panel = document.getElementById('property-panel');
+            panel.classList.remove('d-none');
+            
+            // 获取节点类型
+            const nodeClass = node.className.split(' ');
+            const nodeType = nodeClass[1]?.replace('node-', '') || '';
+            
+            // 填充表单
+            document.getElementById('node-id').value = node.id;
+            document.getElementById('node-label').value = node.data.label || '';
+            
+            // 显示/隐藏特定属性
+            const actionProps = document.querySelector('.action-properties');
+            const conditionProps = document.querySelector('.condition-properties');
+            
+            actionProps.classList.add('d-none');
+            conditionProps.classList.add('d-none');
+            
+            if (nodeType === 'action') {
+                actionProps.classList.remove('d-none');
+                document.getElementById('action-code').value = node.data.code || '';
+            } else if (nodeType === 'condition') {
+                conditionProps.classList.remove('d-none');
+                document.getElementById('condition-expression').value = node.data.condition || '';
+            }
+        }
+        
+        // 隐藏属性面板
+        function hidePropertyPanel() {
+            document.getElementById('property-panel').classList.add('d-none');
+            selectedNode = null;
+        }
+        
+        // 更新节点属性
+        function updateNodeProperties() {
+            if (!selectedNode) return;
+            
+            const nodeId = document.getElementById('node-id').value;
+            const label = document.getElementById('node-label').value;
+            
+            // 获取节点类型
+            const nodeClass = selectedNode.className.split(' ');
+            const nodeType = nodeClass[1]?.replace('node-', '') || '';
+            
+            // 获取特定属性
+            let additionalData = {};
+            
+            if (nodeType === 'action') {
+                additionalData.code = document.getElementById('action-code').value;
+            } else if (nodeType === 'condition') {
+                additionalData.condition = document.getElementById('condition-expression').value;
+            }
+            
+            // 更新节点
+            const nodes = reactFlowInstance.getNodes();
+            const updatedNodes = nodes.map(node => {
+                if (node.id === nodeId) {
+                    return {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            label,
+                            ...additionalData
+                        }
+                    };
+                }
+                return node;
+            });
+            
+            reactFlowInstance.setNodes(updatedNodes);
+        }
+        
+        // 删除节点
+        function deleteNode(nodeId) {
+            if (!nodeId) return;
+            
+            const nodes = reactFlowInstance.getNodes();
+            const edges = reactFlowInstance.getEdges();
+            
+            // 移除节点
+            const updatedNodes = nodes.filter(node => node.id !== nodeId);
+            
+            // 移除相关的连接
+            const updatedEdges = edges.filter(
+                edge => edge.source !== nodeId && edge.target !== nodeId
+            );
+            
+            reactFlowInstance.setNodes(updatedNodes);
+            reactFlowInstance.setEdges(updatedEdges);
+            
+            // 隐藏属性面板
+            hidePropertyPanel();
+        }
+        
+        // 保存节点位置
+        function saveNodePosition(nodeId, position) {
+            const nodes = reactFlowInstance.getNodes();
+            const updatedNodes = nodes.map(node => {
+                if (node.id === nodeId) {
+                    return {
+                        ...node,
+                        position
+                    };
+                }
+                return node;
+            });
+            
+            reactFlowInstance.setNodes(updatedNodes);
+        }
+        
+        // 保存流程
+        async function saveFlow() {
+            // 获取当前流程图数据
+            const nodes = reactFlowInstance.getNodes().map(node => {
+                const nodeClass = node.className.split(' ');
+                const nodeType = nodeClass[1]?.replace('node-', '') || 'default';
+                
+                return {
+                    id: node.id,
+                    type: nodeType,
+                    position: node.position,
+                    data: node.data
+                };
+            });
+            
+            const edges = reactFlowInstance.getEdges().map(edge => ({
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                label: edge.label,
+                condition: edge.data?.condition
+            }));
+            
+            // 准备更新数据
+            const updateData = {
+                nodes,
+                connections: edges
+            };
+            
+            try {
+                const response = await fetch(`/flow-editor/flows/${flowId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (!response.ok) throw new Error('保存流程失败');
+                
+                const result = await response.json();
+                alert('流程保存成功');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`保存失败: ${error.message}`);
+            }
+        }
+        
+        // 导出流程为Python脚本
+        async function exportFlow() {
+            try {
+                const response = await fetch(`/flow-editor/flows/${flowId}/export`);
+                if (!response.ok) throw new Error('导出脚本失败');
+                
+                const result = await response.json();
+                
+                // 显示脚本
+                document.getElementById('script-output').value = result.script;
+                
+                // 显示模态框
+                const exportModal = new bootstrap.Modal(document.getElementById('exportModal'));
+                exportModal.show();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`导出失败: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html> 

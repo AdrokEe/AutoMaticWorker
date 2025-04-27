@@ -1,0 +1,32 @@
+{
+  "id": "63bc7a7b-71bd-42b5-b3b6-d2387bb0cedf",
+  "name": "1",
+  "description": "",
+  "nodes": [
+    {
+      "id": "791f83f6-a43f-4e98-ad22-fbb8fc13f478",
+      "type": "start",
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "data": {
+        "label": "开始"
+      }
+    },
+    {
+      "id": "9f058db1-f57d-4abe-b381-56120cc64763",
+      "type": "end",
+      "position": {
+        "x": 500,
+        "y": 150
+      },
+      "data": {
+        "label": "结束"
+      }
+    }
+  ],
+  "connections": [],
+  "created_at": "2025-04-27T11:53:39.949269",
+  "updated_at": "2025-04-27T11:53:39.949269"
+}
