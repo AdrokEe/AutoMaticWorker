@@ -1,5 +1,9 @@
 # 制作流程包
 
+平台的核心是完全离线与内网部署。流程制作应只依赖本地开发材料、已准备的运行组件及目标内网系统，不引入公网认证、运行时下载或云服务依赖。具体环境与交付要求见 [离线部署要求](OFFLINE_DESIGN.md)。
+
+目标学习路径是基础 Python、简单 Playwright 页面定位与操作，再配合 SDK 的会话、交互和运行接口。开发者无需掌握平台的 Vue / Flask / 桌面封装。浏览器 SDK 尚属 M2.1，当前可用接口仍以规范 1.0 为准。
+
 先按 [快速开始](QUICKSTART.md) 安装开发环境，以下命令在仓库根目录执行。Windows 可将 `python` 替换为 `.venv\Scripts\python.exe`，或激活虚拟环境。
 
 ```powershell
@@ -28,7 +32,7 @@ python -m awm run output/my-flow --config output/config.json --data-dir output/a
 
 ## AI 制作
 
-将 [流程制作 Skill](../skills/automaticworker-flow-author/SKILL.md) 提供给支持读取本地文件的 AI 开发工具，明确仓库根目录及所需工作。例如：
+AI 制作不是运行前提，流程可以手工开发。隔离环境使用其允许的本地 AI 环境；使用外部开发服务时仅提供可公开材料和合成样例。将 [流程制作 Skill](../skills/automaticworker-flow-author/SKILL.md) 提供给支持读取本地文件的 AI 开发工具，明确仓库根目录及所需工作。例如：
 
 > 使用仓库内的 automaticworker-flow-author Skill，制作一个 CSV 汇总流程包。输入包含 product 和 amount 两列，输出每个 product 的金额汇总。使用合成数据测试，交付 ZIP、使用说明和实际验证结果。
 

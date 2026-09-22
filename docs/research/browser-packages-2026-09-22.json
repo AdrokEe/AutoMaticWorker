@@ -1,0 +1,71 @@
+{
+  "retrieved_at_utc": "2026-09-22T09:17:37.571248+00:00",
+  "purpose": "Selection research only; no installation or browser compatibility testing performed.",
+  "license_note": "Package metadata may differ from browser distribution or current repository license; consult linked upstream license for the exact version.",
+  "packages": [
+    {
+      "package": "selenium",
+      "version": "4.49.0",
+      "requires_python": ">=3.10",
+      "uploaded_at_utc": "2026-09-09T15:30:21.074404Z",
+      "pypi_license_metadata": "Apache-2.0",
+      "source": "https://pypi.org/pypi/selenium/json"
+    },
+    {
+      "package": "playwright",
+      "version": "1.63.0",
+      "requires_python": ">=3.10",
+      "uploaded_at_utc": "2026-09-15T16:49:36.455342Z",
+      "pypi_license_metadata": "Apache-2.0",
+      "source": "https://pypi.org/pypi/playwright/json"
+    },
+    {
+      "package": "patchright",
+      "version": "1.63.0",
+      "requires_python": ">=3.10",
+      "uploaded_at_utc": "2026-09-20T12:14:24.763643Z",
+      "pypi_license_metadata": "Apache-2.0",
+      "source": "https://pypi.org/pypi/patchright/json"
+    },
+    {
+      "package": "nodriver",
+      "version": "0.50.3",
+      "requires_python": ">=3.9",
+      "uploaded_at_utc": "2026-05-13T13:57:55.270516Z",
+      "pypi_license_metadata": "Long license text omitted; check upstream LICENSE (nodriver: AGPL-3.0)",
+      "source": "https://pypi.org/pypi/nodriver/json"
+    },
+    {
+      "package": "DrissionPage",
+      "version": "4.1.1.4",
+      "requires_python": ">=3.6",
+      "uploaded_at_utc": "2026-05-27T01:49:10.846570Z",
+      "pypi_license_metadata": null,
+      "source": "https://pypi.org/pypi/DrissionPage/json"
+    },
+    {
+      "package": "camoufox",
+      "version": "0.5.6",
+      "requires_python": "<4.0,>=3.10",
+      "uploaded_at_utc": "2026-09-06T01:28:01.399136Z",
+      "pypi_license_metadata": "MIT",
+      "source": "https://pypi.org/pypi/camoufox/json"
+    },
+    {
+      "package": "HumanCursor",
+      "version": "1.1.5",
+      "requires_python": ">=3.7",
+      "uploaded_at_utc": "2023-11-30T23:59:14.551848Z",
+      "pypi_license_metadata": null,
+      "source": "https://pypi.org/pypi/HumanCursor/json"
+    },
+    {
+      "package": "pywinauto",
+      "version": "0.6.9",
+      "requires_python": null,
+      "uploaded_at_utc": "2025-01-06T11:30:01.801593Z",
+      "pypi_license_metadata": "BSD 3-clause",
+      "source": "https://pypi.org/pypi/pywinauto/json"
+    }
+  ]
+}
