@@ -1,0 +1,2 @@
+-r requirements-desktop.txt
+pytest==9.0.3

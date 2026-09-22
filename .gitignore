@@ -5,3 +5,9 @@ venv
 node_modules
 dist
 .cache
+.venv/
+.pytest_cache/
+output/
+*.tsbuildinfo
+*.log
+.playwright-cli/

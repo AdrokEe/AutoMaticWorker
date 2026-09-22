@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0", "id": "sample-report", "name": "合成数据报告",
+  "version": "1.0.0", "author": "AutoMaticWorker",
+  "description": "用合成销售数据生成 CSV 与汇总报告。无需账号，可用于首次体验和制作流程包的起点。",
+  "platform": ">=0.2.0,<0.3.0", "entry": "flow.py:run", "dependencies": [],
+  "capabilities": ["file-write"], "dry_run": "simulation",
+  "parameters": [
+    {"key": "title", "label": "报告名称", "type": "text", "default": "我的第一份报告", "required": true},
+    {"key": "rows", "label": "数据条数", "type": "number", "minimum": 1, "maximum": 100, "default": 5, "required": true},
+    {"key": "currency", "label": "显示币种", "type": "enum", "options": ["CNY", "USD"], "default": "CNY"},
+    {"key": "include_csv", "label": "同时生成 CSV 明细", "type": "boolean", "default": true},
+    {"key": "delay", "label": "每条等待秒数", "type": "number", "minimum": 0, "maximum": 2, "default": 0.2, "description": "调高数值可以体验进度显示和取消任务。"}
+  ]
+}
