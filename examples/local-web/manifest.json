@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0", "id": "sample-local-web", "name": "本地网页表单演示",
+  "version": "1.0.0", "author": "AutoMaticWorker",
+  "description": "启动一次性本地模拟网页，提交表单并提取回执。仅访问本次任务创建的本机服务。",
+  "platform": ">=0.2.0,<0.3.0", "entry": "flow.py:run", "dependencies": [],
+  "capabilities": ["network", "file-write"], "dry_run": "simulation",
+  "parameters": [{"key": "name", "label": "演示姓名", "type": "text", "default": "体验用户", "required": true}]
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoMaticWorker flow manifest 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "name", "version", "description", "author", "platform", "entry", "parameters", "capabilities", "dependencies", "dry_run"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", "maxLength": 64},
+    "name": {"type": "string", "minLength": 1, "maxLength": 100},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "description": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "author": {"type": "string", "minLength": 1, "maxLength": 100},
+    "platform": {"type": "string", "minLength": 1},
+    "entry": {"const": "flow.py:run"},
+    "dry_run": {"enum": ["simulation", "preview", "unsupported"]},
+    "capabilities": {"type": "array", "uniqueItems": true, "items": {"enum": ["file-read", "file-write", "network", "browser", "external-write"]}},
+    "dependencies": {"type": "array", "maxItems": 0, "description": "v0.2 supports Python standard library and awm.sdk only"},
+    "parameters": {"type": "array", "maxItems": 50, "items": {"$ref": "#/$defs/parameter"}}
+  },
+  "$defs": {
+    "parameter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["key", "label", "type"],
+      "properties": {
+        "key": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64},
+        "label": {"type": "string", "minLength": 1, "maxLength": 100},
+        "type": {"enum": ["text", "number", "boolean", "enum", "file", "directory"]},
+        "description": {"type": "string", "maxLength": 1000},
+        "required": {"type": "boolean"},
+        "secret": {"type": "boolean"},
+        "default": {"type": ["string", "number", "boolean"]},
+        "options": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+        "minimum": {"type": "number"}, "maximum": {"type": "number"}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "enum"}}}, "then": {"required": ["options"]}},
+        {"if": {"properties": {"secret": {"const": true}}, "required": ["secret"]}, "then": {"properties": {"type": {"const": "text"}}, "not": {"required": ["default"]}}}
+      ]
+    }
+  }
+}

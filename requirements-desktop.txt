@@ -1,0 +1,2 @@
+-r requirements.txt
+pywebview==6.2.1
