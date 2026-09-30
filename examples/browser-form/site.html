@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><title>离线流程演示</title>
+<style>body{font:18px system-ui;max-width:720px;margin:60px auto;background:#f0f5f2;color:#183a2a}section{background:white;padding:28px;border-radius:16px;margin:18px 0}label{display:block;margin:16px 0}input,button{font:inherit;padding:12px;border:1px solid #98b3a6;border-radius:8px}input{display:block;width:90%;margin-top:8px}button{background:#176747;color:white;cursor:pointer}[hidden]{display:none}</style>
+<h1>本地浏览器工作流</h1><p>合成数据，仅连接本机服务。</p>
+<section id="login"><h2>演示登录</h2><p>不需要真实账号。</p><button id="login-button">登录演示系统</button></section>
+<section id="query" hidden><h2>查询</h2><button id="query-button">查询演示记录</button><p id="record" hidden>找到记录 LOCAL-001</p></section>
+<section id="form" hidden><h2>填写记录</h2><label>姓名<input id="name" autocomplete="off"></label><label>备注<input id="note" autocomplete="off"></label><button id="submit">提交记录</button><p id="receipt" role="status"></p></section>
+<script>
+const events={moves:0,keys:0,inputs:0};
+const countEvent=kind=>{events[kind]++;document.documentElement.dataset.events=JSON.stringify(events)};
+document.documentElement.dataset.events=JSON.stringify(events);
+document.addEventListener('mousemove',()=>countEvent('moves'));
+document.addEventListener('keydown',()=>countEvent('keys'));
+document.addEventListener('input',()=>countEvent('inputs'));
+document.querySelector('#login-button').onclick=()=>{document.querySelector('#login').hidden=true;document.querySelector('#query').hidden=false};
+document.querySelector('#query-button').onclick=()=>{document.querySelector('#record').hidden=false;document.querySelector('#form').hidden=false};
+document.querySelector('#submit').onclick=async()=>{
+  document.querySelector('#submit').disabled=true;
+  const response=await fetch('/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.querySelector('#name').value,note:document.querySelector('#note').value})});
+  const result=await response.json();document.querySelector('#receipt').dataset.value=JSON.stringify(result);
+  document.querySelector('#receipt').textContent='已保存：'+result.id;
+};
+</script></html>

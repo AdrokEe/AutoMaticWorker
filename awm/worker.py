@@ -19,7 +19,8 @@ def main():
         protocol.write(PREFIX + json.dumps(event, ensure_ascii=False) + "\n")
         protocol.flush()
 
-    ctx = Context(request["id"], request["output"], request["cancel"], request["dry_run"], emit)
+    ctx = Context(request["id"], request["output"], request["cancel"], request["dry_run"], emit,
+                  browser_settings=request.get("browser"), home=request.get("home"))
     try:
         package = Path(request["package"])
         sys.path.insert(0, str(package))
@@ -43,6 +44,8 @@ def main():
         emit({"type": "log", "level": "error", "message": traceback.format_exc()})
         emit({"type": "failure", "message": str(exc)})
         return 1
+    finally:
+        ctx.close()
 
 
 if __name__ == "__main__":

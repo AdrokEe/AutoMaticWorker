@@ -66,11 +66,15 @@ def create_app(runtime=None):
     def flows():
         return jsonify(runtime.library())
 
+    @app.route("/api/environment", methods=["GET", "PUT"])
+    def environment():
+        return jsonify(runtime.save_environment(body()) if request.method == "PUT" else runtime.environment())
+
     @app.post("/api/examples")
     def examples():
         installed = {p["id"] for p in runtime.library()}
         with tempfile.TemporaryDirectory(dir=runtime.home) as temp:
-            for name, flow_id in (("report", "sample-report"), ("local-web", "sample-local-web")):
+            for name, flow_id in (("report", "sample-report"), ("local-web", "sample-local-web"), ("browser-form", "sample-browser-form")):
                 if flow_id not in installed:
                     archive = pack(ROOT / "examples" / name, Path(temp) / f"{name}.zip")
                     runtime.install(archive)
@@ -133,6 +137,10 @@ def create_app(runtime=None):
     @app.post("/api/runs/<run_id>/cancel")
     def cancel(run_id):
         return jsonify(runtime.cancel(run_id))
+
+    @app.post("/api/runs/<run_id>/resume")
+    def resume(run_id):
+        return jsonify(runtime.resume(run_id, body().get("wait_id")))
 
     @app.get("/api/runs/<run_id>/files/<path:filename>")
     def artifact(run_id, filename):

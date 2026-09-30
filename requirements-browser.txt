@@ -1,0 +1,2 @@
+# Optional runtime; prepare wheels on a permitted build machine for offline installation.
+playwright==1.63.0

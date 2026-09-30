@@ -2,7 +2,7 @@
 
 平台的核心是完全离线与内网部署。流程制作应只依赖本地开发材料、已准备的运行组件及目标内网系统，不引入公网认证、运行时下载或云服务依赖。具体环境与交付要求见 [离线部署要求](OFFLINE_DESIGN.md)。
 
-目标学习路径是基础 Python、简单 Playwright 页面定位与操作，再配合 SDK 的会话、交互和运行接口。开发者无需掌握平台的 Vue / Flask / 桌面封装。浏览器 SDK 尚属 M2.1，当前可用接口仍以规范 1.0 为准。
+目标学习路径是基础 Python、简单 Playwright 页面定位与操作，再配合 SDK 的会话、交互和运行接口。开发者无需掌握平台的 Vue / Flask / 桌面封装。[浏览器 SDK](BROWSER_SDK.md) 已在 0.2.1 实现，浏览器流程使用规范 1.1；旧标准库流程继续使用规范 1.0。
 
 先按 [快速开始](QUICKSTART.md) 安装开发环境，以下命令在仓库根目录执行。Windows 可将 `python` 替换为 `.venv\Scripts\python.exe`，或激活虚拟环境。
 
@@ -38,4 +38,4 @@ AI 制作不是运行前提，流程可以手工开发。隔离环境使用其�
 
 Skill 为项目随附 Alpha，需要这个仓库中的规范、CLI 和模板。暂不提供脱离仓库的独立安装包，也不声称所有 AI 工具均已兼容。
 
-制作的入口文档为 [规范](FLOW_SPEC.md)。可复用 [报告示例](../examples/report) 和 [本地网页示例](../examples/local-web)。本版不包含浏览器自动化库；本地网页示例通过标准库 HTTP 请求与 HTML 解析演示网页流程。
+制作入口为 [规范](FLOW_SPEC.md)。可复用 [报告示例](../examples/report)、[标准库网页示例](../examples/local-web) 和 [真实浏览器示例](../examples/browser-form)。浏览器模板初始化命令为 `python -m awm init output/my-browser --id my-browser --template browser-form`；先按浏览器 SDK 文档准备本地环境，平台不会下载依赖。

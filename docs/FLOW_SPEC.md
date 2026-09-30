@@ -1,4 +1,4 @@
-# 流程包规范 1.0 · 平台 0.2
+# 流程包规范 1.0 / 1.1 · 平台 0.2.1
 
 本规范对应仓库中已实现的 `awm` 运行时。字段以 [JSON Schema](../schemas/manifest.schema.json) 为机器校验依据，执行行为以本文和自动化测试为依据。
 
@@ -10,21 +10,24 @@ ZIP 根目录必须直接包含 `manifest.json` 和 `flow.py`，不能额外套�
 
 ## 清单
 
-参照 [报告示例](../examples/report/manifest.json)。所有顶层字段必填，未知字段被拒绝：
+参照 [报告示例](../examples/report/manifest.json) 与 [浏览器示例](../examples/browser-form/manifest.json)。除 `browser` 外下列顶层字段必填，未知字段被拒绝：
 
 | 字段 | 约定 |
 | --- | --- |
-| `schema_version` | 固定为 `1.0` |
+| `schema_version` | `1.0` 或 `1.1`；使用 browser 字段须为 `1.1` |
 | `id` / `name` / `description` / `author` | 稳定 ID、显示名称、用途说明、作者 |
 | `version` | 例如 `1.0.0`；不接受预发布后缀 |
 | `platform` | PEP 440 版本约束；本版建议 `>=0.2.0,<0.3.0` |
 | `entry` | 固定为 `flow.py:run` |
 | `parameters` | 参数数组；无参数时使用空数组 |
-| `dependencies` | 本版只能是 `[]`；仅支持 Python 标准库与 `awm.sdk` |
-| `capabilities` | 从 `file-read`、`file-write`、`network`、`browser`、`external-write` 选择实际用到的能力 |
+| `dependencies` | 本版只能是 `[]`；标准库与平台 SDK，可选浏览器后端由平台管理 |
+| `capabilities` | 从 `file-read`、`file-write`、`network`、`browser`、`desktop-input`、`external-write` 选择实际能力；不是安全沙箱 |
+| `browser` | 可选对象，必须包含非空去重数组 backends（playwright / patchright）和 input_modes（browser / desktop）；声明 browser 能力，支持 desktop 时还须声明 desktop-input |
 | `dry_run` | `simulation`（模拟执行）、`preview`（预览操作）或 `unsupported` |
 
 依赖策略：本版不会静默执行 pip、不会修改宿主环境，也不接受第三方依赖声明。未来添加第三方依赖时需实现单包环境隔离和安装反馈，再变更契约。独立进程隔离生命周期，不隔离操作系统权限；能力声明是说明信息，不是权限沙箱。
+
+规范 1.1 的 browser 是平台预备的可选运行组件，不是任意依赖安装入口。浏览器流程要求平台 `>=0.2.1,<0.3.0`，启动前检查本地组件、路径和所选后端/输入模式。旧规范 1.0 的标准库包继续运行。具体 API 见 [浏览器 SDK](BROWSER_SDK.md)。
 
 ## 参数
 
@@ -64,6 +67,10 @@ def run(ctx, config):
 | `ctx.log(message, level='info')` | 结构化日志，级别为 info / warning / error |
 | `ctx.progress(current, total, message='')` | `total > 0`，`0 <= current <= total`；显示百分比 |
 | `ctx.check_cancelled()` | 已请求取消时抛出 `awm.sdk.Cancelled`；不要吞掉该异常 |
+| `ctx.sleep(seconds)` | 可取消等待 |
+| `ctx.wait_for_user(message, timeout=300)` | 进入可取消的人工等待；继续后需重新验证页面状态 |
+| `ctx.step(name)` | 上下文管理器，输出步骤开始与成功耗时 |
+| `ctx.browser()` | 需声明 browser；返回会话上下文管理器，详见浏览器 SDK |
 | `ctx.output_path(name)` | 返回结果目录内路径并建立父目录，拒绝越界路径 |
 | `ctx.result(summary, files=())` | 校验输出文件存在，返回标准结果；`files` 是相对结果目录的文件名列表 |
 
@@ -81,7 +88,7 @@ def run(ctx, config):
 
 ## 状态、持久化与兼容
 
-正常状态为 `running → succeeded / failed`，取消为 `running → cancelling → cancelled`。重启发现中断记录时标记失败并说明中断，不自动继续。
+正常状态为 `running → succeeded / failed`；人工衔接为 `running → waiting → running`，等待超时失败；取消可从 running 或 waiting 进入 `cancelling → cancelled`。每次人工等待使用独立 wait_id，过期继续请求被拒绝。重启发现运行或等待中的记录时标记失败，不自动重试。
 
 每次运行保留包 ID、包版本、模式、时间、非敏感配置、状态、进度、日志、摘要与输出列表。数据保存在本机；当前不提供自动清理上传输入和历史结果。可在应用关闭后备份或清理数据目录。
 

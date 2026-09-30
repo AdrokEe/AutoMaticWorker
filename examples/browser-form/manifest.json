@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.1",
+  "id": "sample-browser-form",
+  "name": "离线浏览器填表",
+  "version": "1.0.0",
+  "description": "真实浏览器操作本地测试站：演示登录、查询、逐字填表、一次提交和回执导出。先在浏览器环境中选择本地组件。",
+  "author": "AutoMaticWorker",
+  "platform": ">=0.2.1,<0.3.0",
+  "entry": "flow.py:run",
+  "dry_run": "preview",
+  "dependencies": [],
+  "capabilities": ["browser", "desktop-input", "network", "file-write"],
+  "browser": {"backends": ["playwright", "patchright"], "input_modes": ["browser", "desktop"]},
+  "parameters": [
+    {"key": "name", "label": "演示姓名", "type": "text", "required": true, "default": "离线测试用户"},
+    {"key": "note", "label": "备注", "type": "text", "default": "本地生成，不上传"},
+    {"key": "manual_login", "label": "人工完成演示登录", "type": "boolean", "default": false,
+     "description": "需要可见窗口；在演示页点击登录后，返回平台点击继续。"}
+  ]
+}

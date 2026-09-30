@@ -16,8 +16,10 @@ jobs:
           cache: npm
           cache-dependency-path: vue_frontend/package-lock.json
       - run: python -m pip install -r requirements-lock-windows.txt
+      - run: python -m pip install -r requirements-browser-lock-windows.txt
       - run: python -m pytest -q
         env:
           PYTHONUTF8: '1'
+          AWM_TEST_BROWSER: 'C:\Program Files\Google\Chrome\Application\chrome.exe'
       - run: npm ci --prefix vue_frontend
       - run: npm run build --prefix vue_frontend

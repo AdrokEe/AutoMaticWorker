@@ -683,6 +683,7 @@ td small {
   color: #ad7259;
 }
 .status.running,
+.status.waiting,
 .status.cancelling {
   background: #eef1fb;
   color: #6576a5;

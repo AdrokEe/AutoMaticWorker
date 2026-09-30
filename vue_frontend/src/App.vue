@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { api, bootstrap, fileUrl, type Flow, type Run, type Values, type Parameter } from './api'
+import BrowserSettings from './BrowserSettings.vue'
 
 const page = ref('library')
 const flows = ref<Flow[]>([])
@@ -13,7 +14,7 @@ const notice = ref('')
 const error = ref('')
 const busy = ref(false)
 const connected = ref(false)
-const version = ref('0.2.0')
+const version = ref('0.2.1')
 const dataDir = ref('')
 const showImport = ref(false)
 const importFile = ref<File | null>(null)
@@ -27,11 +28,12 @@ const filtered = computed(() =>
   ),
 )
 const active = computed(() =>
-  history.value.find((r) => ['running', 'cancelling'].includes(r.status)),
+  history.value.find((r) => ['running', 'waiting', 'cancelling'].includes(r.status)),
 )
 const succeeded = computed(() => history.value.filter((r) => r.status === 'succeeded').length)
 const statusNames: Record<string, string> = {
   running: '运行中',
+  waiting: '等待人工操作',
   cancelling: '正在取消',
   succeeded: '已完成',
   failed: '失败',
@@ -42,11 +44,12 @@ const capabilityNames: Record<string, string> = {
   'file-write': '生成文件',
   network: '网络访问',
   browser: '浏览器操作',
+  'desktop-input': '可选系统输入',
   'external-write': '外部系统写入',
 }
 const title = computed(
   () =>
-    ({ library: '流程工作台', history: '运行记录', run: '运行详情', guide: '制作流程' })[
+    ({ library: '流程工作台', history: '运行记录', run: '运行详情', guide: '制作流程', environment: '浏览器环境' })[
       page.value
     ],
 )
@@ -125,6 +128,20 @@ async function cancel() {
     await refresh()
   })
 }
+async function resume() {
+  await action(async () => {
+    if (run.value) await api(`/runs/${run.value.id}/resume`, 'POST', { wait_id: run.value.wait_id })
+    await refresh()
+  })
+}
+async function addBrowserExample() {
+  await action(async () => {
+    await api('/examples', 'POST', {})
+    await loadFlows()
+    notice.value = '已添加本地示例，请先配置浏览器环境。'
+    page.value = 'library'
+  })
+}
 async function save() {
   await action(async () => {
     if (!selected.value) return
@@ -152,7 +169,7 @@ async function installExamples() {
   await action(async () => {
     await api('/examples', 'POST', {})
     await loadFlows()
-    notice.value = '两个公开示例已准备好，选择一个开始体验。'
+    notice.value = '三个公开示例已准备好；浏览器示例需要先配置本地环境。'
   })
 }
 async function removeFlow() {
@@ -215,6 +232,7 @@ onUnmounted(() => clearInterval(timer))
         <button :class="{ chosen: page === 'guide' }" @click="page = 'guide'">
           <span>⌘</span> 制作流程
         </button>
+        <button :class="{ chosen: page === 'environment' }" @click="page = 'environment'"><span>◎</span> 浏览器环境</button>
       </nav>
       <div class="sidebar-note">
         <span class="spark">✧</span><strong>把重复的工作，交给流程。</strong>
@@ -246,7 +264,11 @@ onUnmounted(() => clearInterval(timer))
           服务暂不可用，任务状态可能不是最新。连接恢复后会自动更新。
         </div>
 
-        <template v-if="page === 'library'">
+        <template v-if="page === 'environment'">
+          <BrowserSettings :active="!!active" />
+          <button :disabled="busy || !!active" @click="addBrowserExample">添加离线浏览器体验流程</button>
+        </template>
+        <template v-else-if="page === 'library'">
           <div class="page-heading">
             <div>
               <p class="eyebrow">YOUR AUTOMATION, SIMPLIFIED</p>
@@ -498,12 +520,16 @@ onUnmounted(() => clearInterval(timer))
               ><span>{{ run.progress }}%</span>
             </div>
             <progress max="100" :value="run.progress" /><button
-              v-if="['running', 'cancelling'].includes(run.status)"
+              v-if="['running', 'waiting', 'cancelling'].includes(run.status)"
               :disabled="busy || run.status === 'cancelling'"
               @click="cancel"
             >
               {{ run.status === 'cancelling' ? '正在取消…' : '取消运行' }}
             </button>
+            <div v-if="run.status === 'waiting'" class="alert success" role="status">
+              <span>{{ run.wait_message }}</span>
+              <button class="primary" :disabled="busy" @click="resume">已完成，继续运行</button>
+            </div>
             <p v-if="run.status === 'failed'" class="help">
               本次任务未自动重试。请根据下方日志检查输入或流程实现。
             </p>
@@ -582,12 +608,12 @@ onUnmounted(() => clearInterval(timer))
               平台提供配置与运行能力，具体工作由流程包实现。导入的 Python
               流程具有本机执行能力，请使用可信来源的流程包。试运行的行为由流程作者实现。
             </p>
-            <p>当前支持规范 1.0、Python 标准库与平台 SDK；外部依赖安装将在后续版本扩展。</p>
+            <p>支持规范 1.0 / 1.1、Python 标准库与平台 SDK。浏览器流程使用本地 Playwright 或 Patchright；在“浏览器环境”准备组件，运行时不会下载。AI 制作可选。</p>
             <small>本地数据位置：{{ dataDir }}</small>
           </div>
         </template>
         <footer class="footer">
-          AutoMaticWorker <span>开源平台 · 可扩展流程 · 为重复工作而生</span>
+          AutoMaticWorker <span>开源平台与 SDK · 离线优先 · 数据本地留存</span>
         </footer>
       </div>
     </main>

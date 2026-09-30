@@ -20,6 +20,7 @@ export interface Flow {
   dry_run: 'simulation' | 'preview' | 'unsupported'
   parameters: Parameter[]
   capabilities: string[]
+  browser?: { backends: string[]; input_modes: string[] }
 }
 export interface Run {
   id: string
@@ -33,6 +34,8 @@ export interface Run {
   finished_at: string | null
   summary: string
   error: string
+  wait_id?: string | null
+  wait_message?: string
   config: Values
   files: string[]
   logs: { at: string; level: string; message: string }[]

@@ -18,8 +18,9 @@ from awm.packages import (ROOT, FlowError, extract_package, public_config, read_
                           validate_config, validate_directory, write_json)
 from awm.worker import PREFIX
 from awm.processes import ProcessTree
+from awm.environment import DEFAULTS, settings, inspect_environment, require_environment
 
-ACTIVE = {"running", "cancelling"}
+ACTIVE = {"running", "waiting", "cancelling"}
 
 
 def now():
@@ -67,6 +68,18 @@ class Runtime:
     def library(self):
         with self.lock:
             return sorted([validate_directory(p) for p in self.packages.iterdir() if p.is_dir()], key=lambda p: p["name"])
+
+    def environment(self):
+        with self.lock:
+            path = self.home / "browser.json"
+            return inspect_environment(read_json(path) if path.exists() else DEFAULTS)
+
+    def save_environment(self, value):
+        with self.lock:
+            self._idle()
+            config = settings(value)
+            write_json(self.home / "browser.json", config)
+            return inspect_environment(config)
 
     def package(self, flow_id):
         if not isinstance(flow_id, str) or not flow_id or Path(flow_id).name != flow_id or flow_id in (".", ".."):
@@ -136,6 +149,7 @@ class Runtime:
             self._idle()
             path, manifest = self.package(flow_id)
             config = validate_config(manifest, values)
+            browser = require_environment(self.environment()["settings"], manifest["browser"]) if "browser" in manifest else None
             if type(dry_run) is not bool:
                 raise FlowError("dry_run 必须是布尔值")
             if dry_run and manifest["dry_run"] == "unsupported":
@@ -148,12 +162,15 @@ class Runtime:
                       "started_at": now(), "finished_at": None, "progress": 0,
                       "config": public_config(manifest, config), "logs": [], "files": [],
                       "summary": "", "error": ""}
+            if browser:
+                record["browser"] = inspect_environment(browser)
             self.current = record
             self._persist()
             secrets = [str(config[p["key"]]) for p in manifest["parameters"]
                        if p.get("secret") and p["key"] in config and config[p["key"]]]
             payload = {"id": run_id, "package": str(path), "config": config, "dry_run": dry_run,
-                       "output": str(run_dir / "output"), "cancel": str(run_dir / "cancel")}
+                       "output": str(run_dir / "output"), "cancel": str(run_dir / "cancel"),
+                       "home": str(self.home), "browser": browser}
             env = os.environ.copy()
             env.update(PYTHONPATH=str(ROOT), PYTHONIOENCODING="utf-8", PYTHONDONTWRITEBYTECODE="1")
             kwargs = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
@@ -210,6 +227,14 @@ class Runtime:
                         self._log("info", event.get("message", ""))
                     elif kind == "log":
                         self._log(event.get("level", "info"), event.get("message", ""))
+                    elif kind == "waiting" and self.current["status"] == "running":
+                        wait_id = event.get("wait_id", "")
+                        if isinstance(wait_id, str) and len(wait_id) == 32 and all(c in "0123456789abcdef" for c in wait_id):
+                            self.current.update(status="waiting", wait_id=wait_id,
+                                                wait_message=str(event.get("message", "请完成人工操作")))
+                            self._log("info", self.current["wait_message"])
+                    elif kind == "resumed" and self.current["status"] == "waiting" and event.get("wait_id") == self.current.get("wait_id"):
+                        self.current.update(status="running", wait_id=None, wait_message="")
                     self._persist()
             code = process.wait()
             with self.lock:
@@ -235,6 +260,7 @@ class Runtime:
             process.stdout.close()
             with self.lock:
                 self.current["finished_at"] = now()
+                self.current.update(wait_id=None, wait_message="")
                 self._persist()
 
     @staticmethod
@@ -288,6 +314,15 @@ class Runtime:
             (self.runs_dir / run_id / "cancel").touch()
             self._persist()
             threading.Thread(target=self._cancel_after_grace, args=(self.process,), daemon=True).start()
+            return copy.deepcopy(self.current)
+
+    def resume(self, run_id, wait_id):
+        with self.lock:
+            record = self.get_run(run_id)
+            if (not self.current or run_id != self.current["id"] or record["status"] != "waiting" or
+                    not isinstance(wait_id, str) or wait_id != record.get("wait_id")):
+                raise FlowError("人工等待已结束或请求已过期，请刷新运行状态")
+            (self.runs_dir / run_id / ("resume-" + wait_id)).touch()
             return copy.deepcopy(self.current)
 
     def _cancel_after_grace(self, process):
